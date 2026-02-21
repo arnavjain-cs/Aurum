@@ -30,6 +30,17 @@ export default function EventPanel({
     setProgress({ tick: 0, total: 10 })
 
     try {
+      // Trigger grid alert call
+      fetch('http://localhost:8000/call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Grid alert: ${preset.name} detected in regional grid`,
+        }),
+      }).catch(err => console.error('Alert call failed:', err))
+
       const states = await runEventSimulation(currentState, preset, (tick, total) => {
         setProgress({ tick, total })
       })

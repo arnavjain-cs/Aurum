@@ -657,9 +657,14 @@ export default function Map({ onAssetSelect, onMetricsReady, eventHistory, curre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const emergencyLocation = useMemo(() => {
+    if (!affectedNodeId) return null
+    const node = TEXAS_NODES.find(n => n.id === affectedNodeId)
+    return node ? [node.lng, node.lat] as [number, number] : null
+  }, [affectedNodeId])
+
   return (
     <>
-      {/* Tooltip styles — browser-use.com inspired black/white theme */}
       <style>{`
         .grid-tooltip .mapboxgl-popup-content {
           background: rgba(0, 0, 0, 0.95);
@@ -707,7 +712,7 @@ export default function Map({ onAssetSelect, onMetricsReady, eventHistory, curre
         className="h-full w-full"
         aria-label="Power grid map centered on Texas"
       />
-      <VehicleLayer map={mapInstance} />
+      <VehicleLayer map={mapInstance} emergencyLocation={emergencyLocation} />
     </>
   )
 }

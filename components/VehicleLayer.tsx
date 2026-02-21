@@ -6,11 +6,17 @@ import { createInitialVehicles, updateVehicles, Vehicle } from '../lib/vehicleSi
 
 interface VehicleLayerProps {
   map: mapboxgl.Map | null
+  emergencyLocation?: [number, number] | null
 }
 
-export default function VehicleLayer({ map }: VehicleLayerProps) {
+export default function VehicleLayer({ map, emergencyLocation }: VehicleLayerProps) {
   const vehiclesRef = useRef<Vehicle[]>(createInitialVehicles(100))
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const emergencyRef = useRef<[number, number] | null>(null)
+  
+  useEffect(() => {
+    emergencyRef.current = emergencyLocation || null
+  }, [emergencyLocation])
 
   useEffect(() => {
     if (!map) return
@@ -94,7 +100,7 @@ export default function VehicleLayer({ map }: VehicleLayerProps) {
 
       // Start simulation loop
       intervalRef.current = setInterval(() => {
-        vehiclesRef.current = updateVehicles(vehiclesRef.current)
+        vehiclesRef.current = updateVehicles(vehiclesRef.current, emergencyRef.current)
         const source = map.getSource(sourceId) as mapboxgl.GeoJSONSource
         if (source) {
           source.setData({
@@ -112,7 +118,7 @@ export default function VehicleLayer({ map }: VehicleLayerProps) {
             })),
           })
         }
-      }, 50) // High frequency for smooth movement
+      }, 50) 
     }
 
     if (map.isStyleLoaded()) {
@@ -123,7 +129,6 @@ export default function VehicleLayer({ map }: VehicleLayerProps) {
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
-      // Cleanup layers if needed, but usually not necessary for standard React cycle
     }
   }, [map])
 

@@ -11,12 +11,14 @@ export interface TimelinePanelProps {
   eventHistory: EventHistory
   onTimelineChange: (state: SimulationState, tick: number) => void
   onMetricsUpdate?: (metrics: HealthMetrics) => void
+  affectedNodeId?: string | null
 }
 
 export default function TimelinePanel({
   eventHistory,
   onTimelineChange,
   onMetricsUpdate,
+  affectedNodeId,
 }: TimelinePanelProps) {
   const [activeTickIndex, setActiveTickIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -29,10 +31,10 @@ export default function TimelinePanel({
       const state = eventHistory.states[tick]
       onTimelineChange(state, tick)
       if (onMetricsUpdate) {
-        onMetricsUpdate(calculateHealthMetrics(state))
+        onMetricsUpdate(calculateHealthMetrics(state, affectedNodeId))
       }
     },
-    [eventHistory, onTimelineChange, onMetricsUpdate]
+    [eventHistory, onTimelineChange, onMetricsUpdate, affectedNodeId]
   )
 
   useEffect(() => {
@@ -66,7 +68,7 @@ export default function TimelinePanel({
           const state = eventHistory.states[next]
           onTimelineChange(state, next)
           if (onMetricsUpdate) {
-            onMetricsUpdate(calculateHealthMetrics(state))
+            onMetricsUpdate(calculateHealthMetrics(state, affectedNodeId))
           }
           return next
         })

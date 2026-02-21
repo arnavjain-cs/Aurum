@@ -25,6 +25,18 @@ export default function SimulateEvents({ onNodeAffected }: SimulateEventsProps) 
       // Randomly pick one Austin node
       const idx = Math.floor(Math.random() * AUSTIN_NODE_IDS.length)
       const nodeId = AUSTIN_NODE_IDS[idx]
+      
+      // Trigger grid alert call
+      fetch('http://localhost:8000/call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Grid alert: Local asset failure detected at node ${nodeId}`,
+        }),
+      }).catch(err => console.error('Alert call failed:', err))
+
       setActiveNodeId(nodeId)
       onNodeAffected(nodeId)
     }

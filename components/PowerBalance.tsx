@@ -8,6 +8,7 @@ import { useRealtimeMetrics } from '@/hooks/useRealtimeMetrics'
 interface PowerBalanceProps {
   simulationState: SimulationState
   onMetricsChange: (metrics: HealthMetrics) => void
+  affectedNodeId?: string | null
 }
 
 /**
@@ -19,8 +20,12 @@ interface PowerBalanceProps {
  *  - Immediately reflects simulated events (heat wave, generator outage, storm)
  *    the moment they are applied to simulationState.
  */
-export default function PowerBalance({ simulationState, onMetricsChange }: PowerBalanceProps) {
-  const liveMetrics = useRealtimeMetrics(simulationState)
+export default function PowerBalance({ 
+  simulationState, 
+  onMetricsChange,
+  affectedNodeId 
+}: PowerBalanceProps) {
+  const liveMetrics = useRealtimeMetrics(simulationState, affectedNodeId)
 
   // Propagate live metrics up so parent/map can react
   useEffect(() => {

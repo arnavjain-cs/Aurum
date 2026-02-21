@@ -95,13 +95,7 @@ export default function HomePage() {
         <PowerBalance
           simulationState={simulationState}
           onMetricsChange={setMetrics}
-        />
-
-        {/* SimulateEvents component - Event simulation controls */}
-        <SimulateEvents
-          currentState={simulationState}
-          onEventHistoryReady={handleEventHistoryReady}
-          activePresetId={eventHistory?.presetId}
+          affectedNodeId={affectedNodeId}
         />
 
         <ProofModePanel
@@ -134,6 +128,7 @@ export default function HomePage() {
             eventHistory={eventHistory}
             onTimelineChange={handleTimelineChange}
             onMetricsUpdate={setMetrics}
+            affectedNodeId={affectedNodeId}
           />
         </div>
       )}

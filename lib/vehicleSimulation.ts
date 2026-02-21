@@ -58,49 +58,82 @@ export function createInitialVehicles(count: number = 20): Vehicle[] {
   return vehicles;
 }
 
-export function updateVehicles(vehicles: Vehicle[]): Vehicle[] {
+export function updateVehicles(
+  vehicles: Vehicle[],
+  emergencyLocation?: [number, number] | null
+): Vehicle[] {
+  // If there's an emergency, find the nearest 3 vehicles and set them to it
+  let respondersSet = 0
+  const maxResponders = 5
+  
+  const sortedByDist = emergencyLocation ? [...vehicles].sort((a, b) => {
+    const da = Math.sqrt((a.position[0] - emergencyLocation[0])**2 + (a.position[1] - emergencyLocation[1])**2)
+    const db = Math.sqrt((b.position[0] - emergencyLocation[0])**2 + (b.position[1] - emergencyLocation[1])**2)
+    return da - db
+  }) : []
+
+  const responderIds = new Set(sortedByDist.slice(0, maxResponders).map(v => v.id))
+
   return vehicles.map(v => {
-    if (v.status === 'stopped') {
-      if (v.waitTime > 0) {
-        return { ...v, waitTime: v.waitTime - 1 };
+    let currentV = { ...v }
+
+    // If this vehicle is a responder, override its target
+    if (emergencyLocation && responderIds.has(v.id)) {
+      currentV.target = emergencyLocation
+      currentV.status = 'moving'
+      currentV.speed = 0.003 // Extreme speed for emergency response
+    }
+
+    if (currentV.status === 'stopped') {
+      if (currentV.waitTime > 0) {
+        return { ...currentV, waitTime: currentV.waitTime - 1 };
       } else {
         const city = TEXAS_CITIES.find(c => 
-          Math.abs(c.lng - v.position[0]) < 2 && Math.abs(c.lat - v.position[1]) < 2
+          Math.abs(c.lng - currentV.position[0]) < 2 && Math.abs(c.lat - currentV.position[1]) < 2
         ) || getRandomCity();
         return { 
-          ...v, 
+          ...currentV, 
           status: 'moving', 
           target: getRandomPositionNear(city),
-          speed: 0.00003 + Math.random() * 0.00005 // Drastically reduced speed
+          speed: 0.00003 + Math.random() * 0.00005 
         };
       }
     }
 
     // Moving
-    const [currLng, currLat] = v.position;
-    const [targetLng, targetLat] = v.target;
+    const [currLng, currLat] = currentV.position;
+    const [targetLng, targetLat] = currentV.target;
     
     const dLng = targetLng - currLng;
     const dLat = targetLat - currLat;
     const dist = Math.sqrt(dLng * dLng + dLat * dLat);
 
-    if (dist < v.speed) {
+    if (dist < currentV.speed) {
       // Arrived
+      if (emergencyLocation && Math.abs(targetLng - emergencyLocation[0]) < 0.001) {
+        // Arrived at emergency
+        return {
+            ...currentV,
+            position: currentV.target,
+            status: 'stopped',
+            waitTime: 1000, // Stay at emergency for a long time
+        }
+      }
       return { 
-        ...v, 
-        position: v.target, 
+        ...currentV, 
+        position: currentV.target, 
         status: 'stopped', 
-        waitTime: Math.floor(Math.random() * 300) + 150 // Increased wait time
+        waitTime: Math.floor(Math.random() * 300) + 150 
       };
     }
 
     const angle = Math.atan2(dLat, dLng);
-    const newLng = currLng + Math.cos(angle) * v.speed;
-    const newLat = currLat + Math.sin(angle) * v.speed;
+    const newLng = currLng + Math.cos(angle) * currentV.speed;
+    const newLat = currLat + Math.sin(angle) * currentV.speed;
     const newHeading = (angle * 180 / Math.PI) * -1 + 90; // Mapbox heading
 
     return {
-      ...v,
+      ...currentV,
       position: [newLng, newLat],
       heading: newHeading,
     };

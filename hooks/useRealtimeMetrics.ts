@@ -43,12 +43,12 @@ function gaussian(sigma: number): number {
   return Math.max(-3 * sigma, Math.min(3 * sigma, z * sigma))
 }
 
-export function useRealtimeMetrics(simulationState: SimulationState): HealthMetrics {
-  const baseRef = useRef<HealthMetrics>(calculateHealthMetrics(simulationState))
+export function useRealtimeMetrics(simulationState: SimulationState, affectedNodeId?: string | null): HealthMetrics {
+  const baseRef = useRef<HealthMetrics>(calculateHealthMetrics(simulationState, affectedNodeId))
   const tickRef = useRef(0)
 
   const [live, setLive] = useState<HealthMetrics>(() =>
-    calculateHealthMetrics(simulationState)
+    calculateHealthMetrics(simulationState, affectedNodeId)
   )
 
   // Recompute the tick function so lint doesn't complain about stale refs
@@ -96,16 +96,16 @@ export function useRealtimeMetrics(simulationState: SimulationState): HealthMetr
     })
   }, [])
 
-  // When simulation state changes (event fired / timeline scrub) → snap immediately.
+  // When simulation state changes (event fired / timeline scrub) OR local event changes → snap immediately.
   // Apply the same blackout floor so the metric reads as "live" even at baseline.
   useEffect(() => {
-    const newBase = calculateHealthMetrics(simulationState)
+    const newBase = calculateHealthMetrics(simulationState, affectedNodeId)
     baseRef.current = newBase
     setLive({
       ...newBase,
       blackoutProbabilityPct: Math.max(BLACKOUT_FLOOR_PCT, newBase.blackoutProbabilityPct),
     })
-  }, [simulationState])
+  }, [simulationState, affectedNodeId])
 
   // Start the ticker
   useEffect(() => {
