@@ -2593,8 +2593,8 @@ export const AUSTIN_NODE_IDS: string[] = [
   'LOAD-13', 'LOAD-14', 'LOAD-15', 'LOAD-16',
   'LOAD-17', 'LOAD-18', 'LOAD-19', 'LOAD-20', 'LOAD-21',
   'LOAD-22', 'LOAD-23', 'LOAD-24', 'LOAD-25', 'LOAD-26', 'LOAD-27', 'LOAD-28',
-  'GEN-09',  'GEN-10',  'GEN-11',  'GEN-12',  'GEN-13',  'GEN-14',
-  'SUB-07',  'SUB-08',  'SUB-09',  'SUB-10',  'SUB-11',
+  'GEN-09', 'GEN-10', 'GEN-11', 'GEN-12', 'GEN-13', 'GEN-14',
+  'SUB-07', 'SUB-08', 'SUB-09', 'SUB-10', 'SUB-11',
   'STOR-05', 'STOR-06', 'STOR-07',
 ];
 
