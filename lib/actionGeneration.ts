@@ -14,6 +14,7 @@ export interface MitigationAction {
   estimatedViolationReduction: number // MW of violations removed
   feasibility: 'feasible' | 'limited' | 'infeasible'
   confidence: 'high' | 'medium' | 'low'
+  difficulty: 'easy' | 'medium' | 'hard'
   description: string
 }
 
@@ -32,22 +33,28 @@ export function generateActions(
   // For each load node, generate options to shed 5%, 10%, 20%
   const loadNodes = [...state.graph.nodes.values()].filter(n => n.type === 'load')
 
-  loadNodes.forEach(node => {
-    // Estimate current load (using diversity factor from buildInjections)
-    const estimatedLoad = node.capacityMW * 0.45 // midpoint of [0.35, 0.55]
-    if (estimatedLoad < 5) return // skip tiny loads
+  const fractionMeta: Array<{ fraction: number; difficulty: 'easy' | 'medium' | 'hard'; label: string }> = [
+    { fraction: 0.05, difficulty: 'easy',   label: 'Minor curtailment' },
+    { fraction: 0.10, difficulty: 'medium', label: 'Moderate reduction' },
+    { fraction: 0.20, difficulty: 'hard',   label: 'Emergency shed' },
+  ]
 
-    ;[0.05, 0.1, 0.2].forEach(fraction => {
+  loadNodes.forEach(node => {
+    const estimatedLoad = node.capacityMW * 0.45
+    if (estimatedLoad < 5) return
+
+    fractionMeta.forEach(({ fraction, difficulty, label }) => {
       const shedMW = estimatedLoad * fraction
       actions.push({
         id: `load-shed-${node.id}-${Math.round(fraction * 100)}pct`,
         type: 'load-shed',
         nodeId: node.id,
         targetMW: shedMW,
-        estimatedViolationReduction: shedMW * 0.7, // rough estimate
+        estimatedViolationReduction: shedMW * 0.7,
         feasibility: shedMW <= estimatedLoad ? 'feasible' : 'infeasible',
         confidence: 'medium',
-        description: `Shed ${shedMW.toFixed(0)} MW from ${node.name}`,
+        difficulty,
+        description: `${label} at ${node.name} — shed ${shedMW.toFixed(0)} MW`,
       })
     })
   })
@@ -57,7 +64,7 @@ export function generateActions(
   const batteryNodes = [...state.graph.nodes.values()].filter(n => n.type === 'storage')
 
   batteryNodes.forEach(node => {
-    const capacity = Math.min(node.capacityMW, 100) // MW discharge capacity
+    const capacity = Math.min(node.capacityMW, 100)
     ;[0.1, 0.2, 0.3].forEach(fraction => {
       const dischargeMW = capacity * fraction
       actions.push({
@@ -68,7 +75,8 @@ export function generateActions(
         estimatedViolationReduction: dischargeMW * 0.6,
         feasibility: dischargeMW <= capacity ? 'feasible' : 'infeasible',
         confidence: 'high',
-        description: `Discharge ${dischargeMW.toFixed(0)} MW from storage at ${node.name}`,
+        difficulty: 'easy',
+        description: `Dispatch ${dischargeMW.toFixed(0)} MW from battery reserves at ${node.name}`,
       })
     })
   })
@@ -83,11 +91,12 @@ export function generateActions(
     actions.push({
       id: 'reroute-topology',
       type: 'reroute',
-      targetMW: 0, // topology change, not MW-based
+      targetMW: 0,
       estimatedViolationReduction: totalViolationMW * 0.3,
       feasibility: 'feasible',
-      confidence: 'low', // re-routing is unpredictable
-      description: `Re-route power around ${state.trippedEdges.size} failed line${state.trippedEdges.size > 1 ? 's' : ''}`,
+      confidence: 'low',
+      difficulty: 'hard',
+      description: `Isolate ${state.trippedEdges.size} failed line${state.trippedEdges.size > 1 ? 's' : ''} and reroute flow via alternate paths`,
     })
   }
 

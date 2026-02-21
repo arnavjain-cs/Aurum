@@ -89,27 +89,35 @@ export default function HomePage() {
 
       {/* Left HUD overlay — pointer-events-none wrapper so map stays interactive */}
       <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col gap-3">
-        {/* PowerBalance component - Shows grid health metrics */}
-        <PowerBalance onMetricsChange={setMetrics} />
-        
+        {/* PowerBalance component - Shows live grid health metrics */}
+        <PowerBalance
+          simulationState={simulationState}
+          onMetricsChange={setMetrics}
+        />
+
         {/* SimulateEvents component - Event simulation controls */}
         <SimulateEvents
           currentState={simulationState}
           onEventHistoryReady={handleEventHistoryReady}
           activePresetId={eventHistory?.presetId}
         />
-        
+
+        <ProofModePanel
+          lastActionResult={lastActionResult}
+          eventHistory={eventHistory}
+        />
+      </div>
+
+      {/* Right HUD overlay — Recommendations */}
+      <div className="pointer-events-none absolute right-4 top-4 z-10 flex flex-col gap-3">
         {recommendations.length > 0 && (
           <RecommendationsPanel
+            key={eventHistory?.presetId ?? 'default'}
             currentState={simulationState}
             recommendations={recommendations}
             onActionApplied={handleActionApplied}
           />
         )}
-        <ProofModePanel
-          lastActionResult={lastActionResult}
-          eventHistory={eventHistory}
-        />
       </div>
 
       {/* Timeline panel — bottom center */}

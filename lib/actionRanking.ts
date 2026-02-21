@@ -67,7 +67,7 @@ export function rankActions(
       }
     })
     .sort((a, b) => a.score - b.score)
-    .slice(0, 3) // top 3
+    .slice(0, 5)
 
   return ranked
 }
