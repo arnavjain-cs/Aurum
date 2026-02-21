@@ -15,6 +15,11 @@ dist/
 # TypeScript build info
 *.tsbuildinfo
 
+# Python
+__pycache__/
+*.pyc
+venv/
+
 # OS / editor
 .DS_Store
 *.swp
@@ -25,3 +30,4 @@ dist/
 .claude/
 .gemini/
 .cursor/
+backend/.env.example
