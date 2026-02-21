@@ -73,7 +73,7 @@ export default function RecommendationsPanel({
           {visible.map((rec) => (
             <div
               key={rec.id}
-              className="flex flex-col gap-2 rounded-lg border border-white/8 bg-white/5 p-3"
+              className="flex flex-col gap-2 rounded-lg border border-gray-500/50 bg-white/5 p-3"
             >
               {/* Badges + description */}
               <div className="flex items-center gap-2">
