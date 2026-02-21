@@ -1,42 +1,40 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect } from 'react'
+import type { SimulationState } from '@/src/lib/simulation/types'
 import HealthPanel, { type HealthMetrics } from '@/components/HealthPanel'
-
-// Default health metrics — replaced by live values once Map initializes
-const DEFAULT_METRICS: HealthMetrics = {
-  totalLoadMW: 0,
-  totalGenerationMW: 0,
-  reserveMarginPct: 0,
-  criticalLineCount: 0,
-  blackoutProbabilityPct: 0,
-}
+import { useRealtimeMetrics } from '@/hooks/useRealtimeMetrics'
 
 interface PowerBalanceProps {
+  simulationState: SimulationState
   onMetricsChange: (metrics: HealthMetrics) => void
+  affectedNodeId?: string | null
 }
 
 /**
- * PowerBalance component - Displays power grid health metrics and balance
- * Team can modify metrics calculation, display format, and thresholds here
+ * PowerBalance — displays live power grid health metrics.
+ *
+ * Real-time behaviour:
+ *  - Ticks every 2.5 s with realistic sinusoidal drift + gaussian noise so
+ *    numbers visibly change like a real SCADA dashboard.
+ *  - Immediately reflects simulated events (heat wave, generator outage, storm)
+ *    the moment they are applied to simulationState.
  */
-export default function PowerBalance({ onMetricsChange }: PowerBalanceProps) {
-  const [metrics, setMetrics] = useState<HealthMetrics>(DEFAULT_METRICS)
+export default function PowerBalance({ 
+  simulationState, 
+  onMetricsChange,
+  affectedNodeId 
+}: PowerBalanceProps) {
+  const liveMetrics = useRealtimeMetrics(simulationState, affectedNodeId)
 
-  const handleMetricsUpdate = (newMetrics: HealthMetrics) => {
-    setMetrics(newMetrics)
-    onMetricsChange(newMetrics)
-  }
-
-  // Expose metrics setter for external updates
-  // This allows the parent to update metrics from map or simulation
-  if (typeof window !== 'undefined') {
-    ;(window as any).__updatePowerMetrics = handleMetricsUpdate
-  }
+  // Propagate live metrics up so parent/map can react
+  useEffect(() => {
+    onMetricsChange(liveMetrics)
+  }, [liveMetrics, onMetricsChange])
 
   return (
     <div className="pointer-events-auto">
-      <HealthPanel metrics={metrics} />
+      <HealthPanel metrics={liveMetrics} />
     </div>
   )
 }
