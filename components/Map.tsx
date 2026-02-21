@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useMemo, useCallback } from 'react'
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { TEXAS_NODES, TEXAS_EDGES } from '../src/lib/simulation/topology/texas-synthetic'
@@ -12,6 +12,7 @@ import type { HealthMetrics } from './HealthPanel'
 import type { EventHistory } from '../lib/eventRunner'
 import { calculateRiskZones } from '../lib/riskCalculation'
 import { calculateHealthMetrics } from '../lib/sharedMetrics'
+import VehicleLayer from './VehicleLayer'
 
 // Texas grid center — ERCOT service territory
 const TEXAS_CENTER: [number, number] = [-100.0, 31.0]
@@ -66,6 +67,7 @@ interface MapProps {
 
 export default function Map({ onAssetSelect, onMetricsReady, eventHistory, currentTick = 0 }: MapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const popupRef = useRef<mapboxgl.Popup | null>(null)
   const mapLoadedRef = useRef(false)
@@ -159,6 +161,7 @@ export default function Map({ onAssetSelect, onMetricsReady, eventHistory, curre
     })
 
     mapRef.current = map
+    setMapInstance(map)
 
     if (onMetricsReady) {
       onMetricsReady(calculateHealthMetrics(INITIAL_SIM_STATE))
@@ -525,6 +528,7 @@ export default function Map({ onAssetSelect, onMetricsReady, eventHistory, curre
         className="h-full w-full"
         aria-label="Power grid map centered on Texas"
       />
+      <VehicleLayer map={mapInstance} />
     </>
   )
 }
