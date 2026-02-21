@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Production build output (TypeScript compilation)
+dist/
+
+# Environment files (contain secrets)
+.env*.local
+.env
+
+# TypeScript build info
+*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# GSD tooling internals (not project artifacts)
+.claude/
+.gemini/
+.cursor/
