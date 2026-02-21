@@ -57,14 +57,29 @@ function buildCirclePolygon(centerLat: number, centerLng: number, radiusKm: numb
   return points
 }
 
+// Radius used for the event outage overlay circle
+const EVENT_OVERLAY_RADIUS_KM = 30
+
+// Haversine distance in km between two lat/lng points
+function haversineDistKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 interface MapProps {
   onAssetSelect?: (asset: SelectedAsset) => void
   onMetricsReady?: (metrics: HealthMetrics) => void
   eventHistory?: EventHistory | null
   currentTick?: number
+  affectedNodeId?: string | null
 }
 
-export default function Map({ onAssetSelect, onMetricsReady, eventHistory, currentTick = 0 }: MapProps) {
+export default function Map({ onAssetSelect, onMetricsReady, eventHistory, currentTick = 0, affectedNodeId }: MapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const popupRef = useRef<mapboxgl.Popup | null>(null)
@@ -133,6 +148,87 @@ export default function Map({ onAssetSelect, onMetricsReady, eventHistory, curre
     updateMapSources()
   }, [updateMapSources])
 
+  // Update event-overlay source whenever affectedNodeId changes
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoadedRef.current) return
+
+    const overlaySource = map.getSource('event-overlay') as mapboxgl.GeoJSONSource | undefined
+    const highlightNodesSource = map.getSource('event-highlight-nodes') as mapboxgl.GeoJSONSource | undefined
+    const highlightEdgesSource = map.getSource('event-highlight-edges') as mapboxgl.GeoJSONSource | undefined
+
+    const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+
+    if (!affectedNodeId) {
+      overlaySource?.setData(empty)
+      highlightNodesSource?.setData(empty)
+      highlightEdgesSource?.setData(empty)
+      return
+    }
+
+    const centerNode = TEXAS_NODES.find(n => n.id === affectedNodeId)
+    if (!centerNode) {
+      overlaySource?.setData(empty)
+      highlightNodesSource?.setData(empty)
+      highlightEdgesSource?.setData(empty)
+      return
+    }
+
+    // --- Overlay polygon ---
+    const ring = buildCirclePolygon(centerNode.lat, centerNode.lng, EVENT_OVERLAY_RADIUS_KM)
+    overlaySource?.setData({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [ring] },
+          properties: { nodeId: affectedNodeId },
+        },
+      ],
+    })
+
+    // --- Affected nodes: those within EVENT_OVERLAY_RADIUS_KM of center ---
+    const nodeById = Object.fromEntries(TEXAS_NODES.map(n => [n.id, n] as [string, typeof n]))
+    const affectedNodes = TEXAS_NODES.filter(
+      n => haversineDistKm(centerNode.lat, centerNode.lng, n.lat, n.lng) <= EVENT_OVERLAY_RADIUS_KM
+    )
+    highlightNodesSource?.setData({
+      type: 'FeatureCollection',
+      features: affectedNodes.map(n => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [n.lng, n.lat] },
+        properties: { id: n.id, type: n.type, name: n.name, capacityMW: n.capacityMW },
+      })),
+    })
+
+    // --- Affected edges: at least one endpoint within radius ---
+    const affectedEdges = TEXAS_EDGES.filter(e => {
+      const src = nodeById[e.sourceId]
+      const tgt = nodeById[e.targetId]
+      if (!src || !tgt) return false
+      return (
+        haversineDistKm(centerNode.lat, centerNode.lng, src.lat, src.lng) <= EVENT_OVERLAY_RADIUS_KM ||
+        haversineDistKm(centerNode.lat, centerNode.lng, tgt.lat, tgt.lng) <= EVENT_OVERLAY_RADIUS_KM
+      )
+    })
+    highlightEdgesSource?.setData({
+      type: 'FeatureCollection',
+      features: affectedEdges.flatMap(e => {
+        const src = nodeById[e.sourceId]
+        const tgt = nodeById[e.targetId]
+        if (!src || !tgt) return []
+        return [{
+          type: 'Feature' as const,
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: [[src.lng, src.lat], [tgt.lng, tgt.lat]],
+          },
+          properties: { id: e.id },
+        }]
+      }),
+    })
+  }, [affectedNodeId])
+
   useEffect(() => {
     if (!containerRef.current) return
     if (mapRef.current) return
@@ -197,6 +293,23 @@ export default function Map({ onAssetSelect, onMetricsReady, eventHistory, curre
 
       // Risk overlay source
       map.addSource('risk-overlay', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      // Event overlay source (scoped black overlay for simulate events)
+      map.addSource('event-overlay', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      // Highlight sources for impacted nodes/edges inside the event overlay
+      map.addSource('event-highlight-nodes', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      map.addSource('event-highlight-edges', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
@@ -331,6 +444,72 @@ export default function Map({ onAssetSelect, onMetricsReady, eventHistory, curre
       console.info(
         `[Map] Grid overlay added — ${TEXAS_NODES.length} nodes, ${TEXAS_EDGES.length} edges`
       )
+
+      // -------------------------------------------------------------------
+      // LAYER: Event outage overlay (scoped semi-transparent black circle)
+      // Added on top of all grid layers so dark region is clearly visible
+      // -------------------------------------------------------------------
+
+      map.addLayer({
+        id: 'event-overlay-fill',
+        type: 'fill',
+        source: 'event-overlay',
+        paint: {
+          'fill-color': '#000000',
+          'fill-opacity': 0.6,
+        },
+      })
+
+      // -------------------------------------------------------------------
+      // LAYERS: Event highlight — affected edges and nodes rendered ON TOP
+      // of the dark overlay so they stay visible
+      // -------------------------------------------------------------------
+
+      map.addLayer({
+        id: 'event-highlight-edges-glow',
+        type: 'line',
+        source: 'event-highlight-edges',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#ff6600',
+          'line-width': 14,
+          'line-blur': 10,
+          'line-opacity': 0.65,
+        },
+      })
+
+      map.addLayer({
+        id: 'event-highlight-edges-line',
+        type: 'line',
+        source: 'event-highlight-edges',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#ff4400',
+          'line-width': 2.5,
+          'line-opacity': 1.0,
+        },
+      })
+
+      map.addLayer({
+        id: 'event-highlight-nodes-circle',
+        type: 'circle',
+        source: 'event-highlight-nodes',
+        paint: {
+          'circle-radius': [
+            'match', ['get', 'type'],
+            'generator', 12,
+            'substation',  8,
+            'load',       10,
+            'storage',     9,
+            9,
+          ],
+          'circle-color': '#ff4400',
+          'circle-opacity': 1.0,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-opacity': 0.9,
+        },
+      })
 
       // -------------------------------------------------------------------
       // INTERACTION: Click on nodes

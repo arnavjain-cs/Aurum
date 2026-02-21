@@ -30,6 +30,7 @@ interface MapOverlayProps {
   eventHistory: EventHistory | null
   currentTick: number
   onMetricsReady: (metrics: HealthMetrics) => void
+  affectedNodeId?: string | null
 }
 
 /**
@@ -39,7 +40,8 @@ interface MapOverlayProps {
 export default function MapOverlay({ 
   eventHistory, 
   currentTick, 
-  onMetricsReady 
+  onMetricsReady,
+  affectedNodeId,
 }: MapOverlayProps) {
   const [selectedAsset, setSelectedAsset] = useState<SelectedAsset>(null)
 
@@ -55,6 +57,7 @@ export default function MapOverlay({
         onMetricsReady={onMetricsReady}
         eventHistory={eventHistory}
         currentTick={currentTick}
+        affectedNodeId={affectedNodeId}
       />
 
       {/* Asset details panel — bottom right */}

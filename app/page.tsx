@@ -38,6 +38,7 @@ export default function HomePage() {
     createInitialState(SIMULATION_SEED)
   )
   const [lastActionResult, setLastActionResult] = useState<AppliedActionResult | null>(null)
+  const [affectedNodeId, setAffectedNodeId] = useState<string | null>(null)
 
   // Generate recommendations when state changes
   const recommendations = useMemo(() => {
@@ -85,19 +86,13 @@ export default function HomePage() {
         eventHistory={eventHistory}
         currentTick={currentTick}
         onMetricsReady={setMetrics}
+        affectedNodeId={affectedNodeId}
       />
 
       {/* Left HUD overlay — pointer-events-none wrapper so map stays interactive */}
       <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col gap-3">
         {/* PowerBalance component - Shows grid health metrics */}
         <PowerBalance onMetricsChange={setMetrics} />
-        
-        {/* SimulateEvents component - Event simulation controls */}
-        <SimulateEvents
-          currentState={simulationState}
-          onEventHistoryReady={handleEventHistoryReady}
-          activePresetId={eventHistory?.presetId}
-        />
         
         {recommendations.length > 0 && (
           <RecommendationsPanel
@@ -110,6 +105,11 @@ export default function HomePage() {
           lastActionResult={lastActionResult}
           eventHistory={eventHistory}
         />
+      </div>
+
+      {/* Simulate Events button — bottom right */}
+      <div className="pointer-events-none absolute bottom-4 right-4 z-10">
+        <SimulateEvents onNodeAffected={setAffectedNodeId} />
       </div>
 
       {/* Timeline panel — bottom center */}
